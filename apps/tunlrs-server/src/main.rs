@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
+use tunlrs_dtos::{CreateUser, User};
 
 #[tokio::main]
 async fn main() {
@@ -41,17 +41,4 @@ async fn create_user(
     // this will be converted into a JSON response
     // with a status code of `201 Created`
     (StatusCode::CREATED, Json(user))
-}
-
-// the input to our `create_user` handler
-#[derive(Deserialize)]
-struct CreateUser {
-    username: String,
-}
-
-// the output to our `create_user` handler
-#[derive(Serialize)]
-struct User {
-    id: u64,
-    username: String,
 }
