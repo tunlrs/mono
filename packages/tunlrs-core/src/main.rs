@@ -1,3 +1,5 @@
+mod tunnel;
+
 fn main() {
-    println!("Hello, world!");
+    tunnel::tunnel::init_tunnel();
 }
