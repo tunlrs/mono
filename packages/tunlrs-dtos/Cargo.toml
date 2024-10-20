@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 serde = {version = "1.0", features = ["derive"]}
+taurpc = "0.3.0"
+
+specta = { version = "=2.0.0-rc.9", features = ["export"] }
+tokio = { version = "1", features = ["full"] }

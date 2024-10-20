@@ -1,14 +1,12 @@
-use serde::{Serialize, Deserialize};
-
 // the input to our `create_user` handler
-#[derive(Deserialize)]
+#[taurpc::ipc_type]
 pub struct CreateUser {
     pub username: String,
 }
 
 // the output to our `create_user` handler
-#[derive(Serialize)]
+#[taurpc::ipc_type]
 pub struct User {
-    pub id: u64,
+    pub id: u32,
     pub username: String,
 }
