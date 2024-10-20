@@ -1,5 +1,6 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 
 const LISTEN_PORT: u16 = 5000;
 const REPLY_PORT: u16 = 6000;
@@ -30,15 +31,31 @@ async fn tunnel_loop() -> Result<(), Box<dyn std::error::Error>> {
                 if n == 0 {
                     return;
                 }
-
+                /* open a stream here and wait until we get a reply from machine */
                 println!("Got message: {:?} @ {:?}", &buf[0..n], socket);
+                tunnel_to_machine(&buf[0..n]).await.expect("");
 
-                if let Err(e) = stream.write_all(&buf[0..n]).await {
-                    eprintln!("The error was: {:?}", e);
-                }
+                stream
+                    .write_all(&buf[0..n])
+                    .await
+                    .expect("Error writing to client!");
+                println!("Wrote to client!");
+
+                stream.shutdown().await.expect("Shutdown failed!");
             }
         });
     }
+}
+
+async fn tunnel_to_machine(msg: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    let mut tunnel_to_machine = TcpStream::connect("127.0.0.1:54180")
+        .await
+        .expect("TCP connection refused by server!");
+    let message = msg;
+
+    tunnel_to_machine.write(message).await.unwrap();
+    println!("Wrote to tunnel!");
+    Ok(())
 }
 
 // #[cfg(test)]
