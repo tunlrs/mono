@@ -16,11 +16,6 @@
     }
   })
 
-  // async function greet() {
-  //   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  //   res = await invoke("handle_create_user", {body: {username}});
-  // }
-
 </script>
 
 <main class="container">
