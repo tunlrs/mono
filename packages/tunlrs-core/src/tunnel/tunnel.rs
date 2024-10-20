@@ -2,9 +2,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
-const LISTEN_PORT: u16 = 5000;
-const REPLY_PORT: u16 = 6000;
-
 pub fn init_tunnel() -> () {
     println!("Accessing the tunnel!");
     match tunnel_loop() {
