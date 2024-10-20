@@ -1,13 +1,26 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { createTauRPCProxy } from "$lib/tauri/ipc";
+  import { onMount } from "svelte";
 
-  let name = "";
-  let greetMsg = "";
+  let username = "";
+  let res: {id: number, username: string};
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
+  let taurpc: Awaited<ReturnType<typeof createTauRPCProxy>>;
+  let greet: () => Promise<void>
+
+  onMount(async () => {
+    taurpc = await createTauRPCProxy()
+
+    greet = async () => {
+      res = (await taurpc.handle_create_user({username}))
+    }
+  })
+
+  // async function greet() {
+  //   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+  //   res = await invoke("handle_create_user", {body: {username}});
+  // }
+
 </script>
 
 <main class="container">
@@ -27,10 +40,10 @@
   <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
 
   <form class="row" on:submit|preventDefault={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
+    <input id="greet-input" placeholder="Enter a username..." bind:value={username} />
     <button type="submit">Greet</button>
   </form>
-  <p>{greetMsg}</p>
+  <p>{JSON.stringify(res)}</p>
 </main>
 
 <style>

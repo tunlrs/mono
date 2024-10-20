@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tunlrs-client",
+  "productName": "Tunlrs Client",
   "version": "0.1.0",
-  "identifier": "com.tunlrs-client.app",
+  "identifier": "com.tunlrs.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tunlrs-client",
+        "title": "Tunlrs Client",
         "width": 800,
         "height": 600
       }
