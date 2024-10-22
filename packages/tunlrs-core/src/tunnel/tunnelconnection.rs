@@ -2,17 +2,19 @@ use ::core::net::SocketAddr;
 use ::tokio::net::{TcpSocket, TcpStream};
 
 /* verify procedure for writing for server machine. */
+type function_callback = Box<dyn Fn() + Send + Sync>;
+
 pub struct TunnelConnection {
     client_stream: TcpStream,
     client_socket: SocketAddr,
     server_stream: TcpStream,
     server_socket: SocketAddr,
-    on_connect: Option<Box<dyn Fn() + Send + Sync>>,
-    on_client_read: Option<Box<dyn Fn() + Send + Sync>>,
-    on_server_request: Option<Box<dyn Fn() + Send + Sync>>,
-    on_server_response: Option<Box<dyn Fn() + Send + Sync>>,
-    on_client_write: Option<Box<dyn Fn() + Send + Sync>>,
-    on_disconnect: Option<Box<dyn Fn() + Send + Sync>>,
+    on_connect: Option<function_callback>,
+    on_client_read: Option<function_callback>,
+    on_server_request: Option<function_callback>,
+    on_server_response: Option<function_callback>,
+    on_client_write: Option<function_callback>,
+    on_disconnect: Option<function_callback>,
     active: bool,
     timeout: u32,
     /*
@@ -46,6 +48,13 @@ impl TunnelConnection {
         }
     }
 
+    fn consume_callback_function(&mut self, func: Option<function_callback>) -> () {
+        match func {
+            Some(x) => x(),
+            None => (),
+        }
+    }
+
     pub fn set_on_connect(&mut self) {}
     pub fn set_on_client_read(&mut self) {}
     pub fn set_on_server_request(&mut self) {}
@@ -53,10 +62,34 @@ impl TunnelConnection {
     pub fn set_on_client_write(&mut self) {}
     pub fn set_on_disconnect(&mut self) {}
 
-    pub fn connect() {}
-    pub fn relay_to_server() {}
-    pub fn reply_to_client() {}
-    pub fn disconnect() {}
+    pub fn connect(&mut self) {
+        let callback = self.on_connect.take();
+        self.consume_callback_function(callback);
+        /* do other connect stuff */
+    }
+    pub fn relay_to_server(&mut self) {
+        let mut callback = self.on_client_read.take();
+        self.consume_callback_function(callback);
+        /* do other relay_to_server stuff */
+
+        callback = self.on_server_request.take();
+        self.consume_callback_function(callback);
+        /* do stuff in between request and response */
+        callback = self.on_server_response.take();
+        self.consume_callback_function(callback);
+        /* do stuff after getting client request */
+    }
+    pub fn reply_to_client(&mut self) {
+        let callback = self.on_client_write.take();
+        self.consume_callback_function(callback);
+        /* write to client */
+    }
+
+    pub fn disconnect(&mut self) {
+        let callback = self.on_disconnect.take();
+        self.consume_callback_function(callback);
+        /* do stuff to disconnect */
+    }
 }
 
 /* @todo: unit testing of the TunnelConnection */
