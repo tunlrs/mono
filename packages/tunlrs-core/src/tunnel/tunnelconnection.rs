@@ -2,7 +2,7 @@ use ::core::net::SocketAddr;
 use ::tokio::net::{TcpSocket, TcpStream};
 
 /* verify procedure for writing for server machine. */
-type function_callback = Box<dyn Fn() + Send + Sync>;
+type function_callback = Box<dyn Fn(&TunnelConnection) + Send + Sync>;
 
 pub struct TunnelConnection {
     client_stream: TcpStream,
