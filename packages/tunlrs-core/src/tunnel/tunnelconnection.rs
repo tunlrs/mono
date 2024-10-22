@@ -50,7 +50,7 @@ impl TunnelConnection {
 
     fn consume_callback_function(&mut self, func: Option<function_callback>) -> () {
         match func {
-            Some(x) => x(),
+            Some(x) => x(&self),
             None => (),
         }
     }
