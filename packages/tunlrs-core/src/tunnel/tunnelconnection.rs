@@ -68,15 +68,15 @@ impl TunnelConnection {
         /* do other connect stuff */
     }
     pub fn relay_to_server(&mut self) {
-        let mut callback = self.on_client_read.take();
-        self.consume_callback_function(callback);
+        let client_read_callback = self.on_client_read.take();
+        self.consume_callback_function(client_read_callback);
         /* do other relay_to_server stuff */
 
-        callback = self.on_server_request.take();
-        self.consume_callback_function(callback);
+        let server_req_callback = self.on_server_request.take();
+        self.consume_callback_function(server_req_callback);
         /* do stuff in between request and response */
-        callback = self.on_server_response.take();
-        self.consume_callback_function(callback);
+        let server_res_callback = self.on_server_response.take();
+        self.consume_callback_function(server_res_callback);
         /* do stuff after getting client request */
     }
     pub fn reply_to_client(&mut self) {
