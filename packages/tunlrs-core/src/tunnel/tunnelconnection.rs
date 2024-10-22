@@ -7,8 +7,10 @@ type function_callback = Box<dyn Fn(&TunnelConnection) + Send + Sync>;
 pub struct TunnelConnection {
     client_stream: TcpStream,
     client_socket: SocketAddr,
-    server_stream: TcpStream,
-    server_socket: SocketAddr,
+    server_address: String,
+    server_port: u16,
+    server_stream: Option<TcpStream>,
+    server_socket: Option<SocketAddr>,
     on_connect: Option<function_callback>,
     on_client_read: Option<function_callback>,
     on_server_request: Option<function_callback>,
@@ -29,14 +31,16 @@ impl TunnelConnection {
     pub fn new(
         client_stream: TcpStream,
         client_socket: SocketAddr,
-        server_stream: TcpStream,
-        server_socket: SocketAddr,
+        server_address: String,
+        server_port: u16,
     ) -> Self {
         TunnelConnection {
             client_stream,
             client_socket,
-            server_stream,
-            server_socket,
+            server_address,
+            server_port,
+            server_stream: None,
+            server_socket: None,
             on_connect: None,
             on_client_read: None,
             on_server_request: None,
@@ -65,7 +69,11 @@ impl TunnelConnection {
     pub fn connect(&mut self) {
         let callback = self.on_connect.take();
         self.consume_callback_function(callback);
-        /* do other connect stuff */
+        /* do other connect stuff
+            we'll be establishing connection with "server" machine port over here,
+            so if we fail in getting a connection then we directly call disconnect()
+            or raise some sort of error.
+        */
     }
     pub fn relay_to_server(&mut self) {
         let client_read_callback = self.on_client_read.take();
