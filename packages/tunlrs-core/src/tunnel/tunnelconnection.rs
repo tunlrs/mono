@@ -76,6 +76,13 @@ impl TunnelConnection {
         }
     }
 
+    fn consume_callback_function(&mut self, func: Option<function_callback>) -> () {
+        match func {
+            Some(x) => x(&self),
+            None => (),
+        }
+    }
+
     pub fn set_on_connect(&mut self) {}
     pub fn set_on_client_read(&mut self) {}
     pub fn set_on_server_request(&mut self) {}
@@ -83,11 +90,12 @@ impl TunnelConnection {
     pub fn set_on_client_write(&mut self) {}
     pub fn set_on_disconnect(&mut self) {}
 
+  
     pub async fn connect(&mut self) {
         if self.has_raised_error {
             return;
         }
-
+      
         let callback = self.on_connect.take();
         self.consume_callback_function(callback);
         /* do other connect stuff
@@ -104,7 +112,8 @@ impl TunnelConnection {
         let mut buf = [0 as u8; 4096];
         let n_bytes_read = self.client_stream.read(&mut buf).await.expect("");
         println!("Got a message!\nRaw:{:?}\nDecoded: {:?}\n@ {:?}", &buf[0..n_bytes_read], String::from_utf8(buf[0..n_bytes_read].to_vec()), &self.client_socket);
-        let client_read_callback = self.on_client_read.take();
+
+      let client_read_callback = self.on_client_read.take();
         self.consume_callback_function(client_read_callback);
         /* do other relay_to_server stuff */
 
@@ -112,7 +121,6 @@ impl TunnelConnection {
         self.consume_callback_function(server_req_callback);
 
         /* do stuff in between request and response */
-
         let server_res_callback = self.on_server_response.take();
         self.consume_callback_function(server_res_callback);
         /* do stuff after getting client request */
