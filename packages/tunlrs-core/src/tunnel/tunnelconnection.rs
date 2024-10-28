@@ -76,13 +76,6 @@ impl TunnelConnection {
         }
     }
 
-    fn consume_callback_function(&mut self, func: Option<function_callback>) -> () {
-        match func {
-            Some(x) => x(&self),
-            None => (),
-        }
-    }
-
     pub fn set_on_connect(&mut self) {}
     pub fn set_on_client_read(&mut self) {}
     pub fn set_on_server_request(&mut self) {}
@@ -90,12 +83,19 @@ impl TunnelConnection {
     pub fn set_on_client_write(&mut self) {}
     pub fn set_on_disconnect(&mut self) {}
 
-  
     pub async fn connect(&mut self) {
         if self.has_raised_error {
             return;
         }
-      
+
+        let connection_stream = TcpStream::connect("127.0.0.1:55000").await;
+        if let Ok(connection) = connection_stream {
+            self.server_stream = Some(connection);
+        } else {
+            self.has_raised_error = true;
+            return;
+        }
+
         let callback = self.on_connect.take();
         self.consume_callback_function(callback);
         /* do other connect stuff
@@ -109,24 +109,56 @@ impl TunnelConnection {
             return;
         }
 
-        let mut buf = [0 as u8; 4096];
-        let n_bytes_read = self.client_stream.read(&mut buf).await.expect("");
-        println!("Got a message!\nRaw:{:?}\nDecoded: {:?}\n@ {:?}", &buf[0..n_bytes_read], String::from_utf8(buf[0..n_bytes_read].to_vec()), &self.client_socket);
+        /* === READ FROM CLIENT === */
 
-      let client_read_callback = self.on_client_read.take();
+        let mut client_req_buf = [0 as u8; 4096];
+        let n_bytes_read = self
+            .client_stream
+            .read(&mut client_req_buf)
+            .await
+            .expect("");
+
+        let client_read_callback = self.on_client_read.take();
         self.consume_callback_function(client_read_callback);
-        /* do other relay_to_server stuff */
+
+        /* === FORWARD TO HOST === */
+
+        let server_stream = Option::expect(self.server_stream.as_mut(), "");
+        let (_, mut write_head) = server_stream.split();
+        print!("Writing: {:?}\n", &client_req_buf[0..n_bytes_read]);
+        let nb = write_head
+            .write(&client_req_buf[0..n_bytes_read])
+            .await
+            .unwrap();
+        println!("Bytes written: {:?}", nb);
 
         let server_req_callback = self.on_server_request.take();
         self.consume_callback_function(server_req_callback);
 
-        /* do stuff in between request and response */
-        let server_res_callback = self.on_server_response.take();
-        self.consume_callback_function(server_res_callback);
-        /* do stuff after getting client request */
+        /* server_read is being blocked.. */
+        self.reply_to_client().await;
     }
 
     pub async fn reply_to_client(&mut self) {
+        /* === READ FROM HOST === */
+
+        let server_stream = Option::expect(self.server_stream.as_mut(), "");
+        let (mut read_head, _) = server_stream.split();
+
+        let mut server_res_buf = [0 as u8; 4096];
+        let n_bytes_read = self
+            .client_stream
+            .read(&mut server_res_buf)
+            .await
+            .expect("");
+
+        println!("Read from host: {:?}", &server_res_buf[0..n_bytes_read]);
+
+        let server_res_callback = self.on_server_response.take();
+        self.consume_callback_function(server_res_callback);
+
+        /* === REPLY TO CLIENT === */
+
         let callback = self.on_client_write.take();
         self.consume_callback_function(callback);
         /* write to client */
