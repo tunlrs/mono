@@ -21,7 +21,8 @@ async fn tunnel_loop() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:5000").await?;
     loop {
         let (mut stream, socket) = listener.accept().await?;
-        let mut tunnel_connection_object = TunnelConnection::new(stream, socket, "127.0.0.1".to_string(), 5050);
+        let mut tunnel_connection_object =
+            TunnelConnection::new(stream, socket, "127.0.0.1".to_string(), 5050);
         tokio::spawn(async move {
             tunnel_connection_object.connect().await;
             tunnel_connection_object.relay_to_server().await;
