@@ -1,4 +1,4 @@
-use ::core::net::SocketAddr;
+use ::std::net::SocketAddr;
 use ::tokio::net::{TcpSocket, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -88,22 +88,29 @@ impl TunnelConnection {
             return;
         }
 
-        let connection_stream = TcpStream::connect("127.0.0.1:55000").await;
+        /* If we fail to get a connection with the server, then
+        reading from the client's TCP pipe is useless - so we attempt
+        to get a connection with the server first. */
+        let connection_stream =
+            TcpStream::connect(format!("{}:{}", self.server_address, self.server_port)).await;
         if let Ok(connection) = connection_stream {
             self.server_stream = Some(connection);
+            println!(
+                "OK: Connected @ {}",
+                format!("{}:{}", self.server_address, self.server_port)
+            );
         } else {
             self.has_raised_error = true;
+            println!(
+                "ERROR: Server refused connection - {}:{}.\nThis connection will be refuted.",
+                self.server_address, self.server_port
+            );
             return;
         }
-
         let callback = self.on_connect.take();
         self.consume_callback_function(callback);
-        /* do other connect stuff
-            we'll be establishing connection with "server" machine port over here,
-            so if we fail in getting a connection then we directly call disconnect()
-            or raise some sort of error.
-        */
     }
+
     pub async fn relay_to_server(&mut self) {
         if self.has_raised_error {
             return;
@@ -117,6 +124,11 @@ impl TunnelConnection {
             .read(&mut client_req_buf)
             .await
             .expect("");
+
+        if n_bytes_read == 0 {
+            println!("Empty pipe from client!");
+            return;
+        }
 
         let client_read_callback = self.on_client_read.take();
         self.consume_callback_function(client_read_callback);
@@ -135,7 +147,6 @@ impl TunnelConnection {
         let server_req_callback = self.on_server_request.take();
         self.consume_callback_function(server_req_callback);
 
-        /* server_read is being blocked.. */
         self.reply_to_client().await;
     }
 
@@ -146,22 +157,28 @@ impl TunnelConnection {
         let (mut read_head, _) = server_stream.split();
 
         let mut server_res_buf = [0 as u8; 4096];
-        let n_bytes_read = self
-            .client_stream
-            .read(&mut server_res_buf)
-            .await
-            .expect("");
+        let n_bytes_read = self.client_stream.read(&mut server_res_buf).await.unwrap();
 
-        println!("Read from host: {:?}", &server_res_buf[0..n_bytes_read]);
+        if n_bytes_read == 0 {
+            println!("Empty pipe from server!");
+            return;
+        }
+        println!("Read from server: {:?}", &server_res_buf[0..n_bytes_read]);
 
         let server_res_callback = self.on_server_response.take();
         self.consume_callback_function(server_res_callback);
 
         /* === REPLY TO CLIENT === */
 
+        let mut client_stream = &mut self.client_stream;
+        let (_, mut client_write_head) = client_stream.split();
+
+        let n_bytes_written = client_write_head
+            .write(&server_res_buf[0..n_bytes_read])
+            .await
+            .unwrap();
         let callback = self.on_client_write.take();
         self.consume_callback_function(callback);
-        /* write to client */
     }
 
     pub async fn disconnect(&mut self) {
