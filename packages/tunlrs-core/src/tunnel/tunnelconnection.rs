@@ -157,7 +157,7 @@ impl TunnelConnection {
         let (mut read_head, _) = server_stream.split();
 
         let mut server_res_buf = [0 as u8; 4096];
-        let n_bytes_read = self.client_stream.read(&mut server_res_buf).await.unwrap();
+        let n_bytes_read = read_head.read(&mut server_res_buf).await.unwrap();
 
         if n_bytes_read == 0 {
             println!("Empty pipe from server!");
@@ -170,7 +170,7 @@ impl TunnelConnection {
 
         /* === REPLY TO CLIENT === */
 
-        let mut client_stream = &mut self.client_stream;
+        let client_stream = &mut self.client_stream;
         let (_, mut client_write_head) = client_stream.split();
 
         let n_bytes_written = client_write_head
