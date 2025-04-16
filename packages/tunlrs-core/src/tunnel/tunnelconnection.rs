@@ -1,4 +1,5 @@
 use ::std::net::SocketAddr;
+use std::str;
 use ::tokio::net::{TcpSocket, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -20,25 +21,9 @@ pub struct TunnelConnection {
     on_disconnect: Option<function_callback>,
     active: bool,
     timeout: u32,
-    has_raised_error: bool,
-    error_message: String,
-    /*
-    Other stuff:
-    - shutdown signal
-    - TLS/SSL
-    - encryption(?)
-    */
 }
 
-/*
-    expose
-    TunnelManager
-        - values()
-        - ready, waiting for server
-        - vec[vec[OBJ, OBJ], 1: WAITIN]
-        - TunnelConnection
-*/
-
+/* @TODO: implement proper Exceptions() */
 impl TunnelConnection {
     pub fn new(
         client_stream: TcpStream,
@@ -61,8 +46,6 @@ impl TunnelConnection {
             on_disconnect: None,
             active: false,
             timeout: 1000,
-            has_raised_error: false,
-            error_message: "".to_string(),
             /* find out a better method for
             containing diagnostics data - maybe another
             struct? */
@@ -76,7 +59,11 @@ impl TunnelConnection {
         }
     }
 
-    pub fn set_on_connect(&mut self) {}
+    pub fn set_on_connect(&mut self, func: Option<function_callback>) {
+        /* @doubt: are we "consuming" func, or keeping it alive 
+         * for the lifetime? */
+        self.on_connect = func;
+    }
     pub fn set_on_client_read(&mut self) {}
     pub fn set_on_server_request(&mut self) {}
     pub fn set_on_server_response(&mut self) {}
@@ -84,10 +71,6 @@ impl TunnelConnection {
     pub fn set_on_disconnect(&mut self) {}
 
     pub async fn connect(&mut self) {
-        if self.has_raised_error {
-            return;
-        }
-
         /* If we fail to get a connection with the server, then
         reading from the client's TCP pipe is useless - so we attempt
         to get a connection with the server first. */
@@ -100,22 +83,23 @@ impl TunnelConnection {
                 format!("{}:{}", self.server_address, self.server_port)
             );
         } else {
-            self.has_raised_error = true;
             println!(
                 "ERROR: Server refused connection - {}:{}.\nThis connection will be refuted.",
                 self.server_address, self.server_port
             );
-            return;
-        }
+
+            let (_, mut client_write_head) = (&mut self.client_stream).split();
+            client_write_head
+                .write("503: SERVER ERROR\n".as_bytes())
+                .await
+                .unwrap();
+                return;
+            }
         let callback = self.on_connect.take();
         self.consume_callback_function(callback);
     }
 
     pub async fn relay_to_server(&mut self) {
-        if self.has_raised_error {
-            return;
-        }
-
         /* === READ FROM CLIENT === */
 
         let mut client_req_buf = [0 as u8; 4096];
@@ -137,12 +121,10 @@ impl TunnelConnection {
 
         let server_stream = Option::expect(self.server_stream.as_mut(), "");
         let (_, mut write_head) = server_stream.split();
-        print!("Writing: {:?}\n", &client_req_buf[0..n_bytes_read]);
         let nb = write_head
             .write(&client_req_buf[0..n_bytes_read])
             .await
             .unwrap();
-        println!("Bytes written: {:?}", nb);
 
         let server_req_callback = self.on_server_request.take();
         self.consume_callback_function(server_req_callback);
@@ -163,16 +145,11 @@ impl TunnelConnection {
             println!("Empty pipe from server!");
             return;
         }
-        println!("Read from server: {:?}", &server_res_buf[0..n_bytes_read]);
-
         let server_res_callback = self.on_server_response.take();
         self.consume_callback_function(server_res_callback);
 
         /* === REPLY TO CLIENT === */
-
-        let client_stream = &mut self.client_stream;
-        let (_, mut client_write_head) = client_stream.split();
-
+        let (_, mut client_write_head) = (&mut self.client_stream).split();
         let n_bytes_written = client_write_head
             .write(&server_res_buf[0..n_bytes_read])
             .await
@@ -188,4 +165,3 @@ impl TunnelConnection {
     }
 }
 
-/* @todo: unit testing of the TunnelConnection */
