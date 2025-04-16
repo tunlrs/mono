@@ -121,12 +121,10 @@ impl TunnelConnection {
 
         let server_stream = Option::expect(self.server_stream.as_mut(), "");
         let (_, mut write_head) = server_stream.split();
-        // print!("Writing: {:?}\n", &client_req_buf[0..n_bytes_read]);
         let nb = write_head
             .write(&client_req_buf[0..n_bytes_read])
             .await
             .unwrap();
-        // println!("Bytes written: {:?}", nb);
 
         let server_req_callback = self.on_server_request.take();
         self.consume_callback_function(server_req_callback);
@@ -147,15 +145,10 @@ impl TunnelConnection {
             println!("Empty pipe from server!");
             return;
         }
-        // println!("Read from server: {:?}", &server_res_buf[0..n_bytes_read]);
-        // println!("DATA: {:?}", str::from_utf8(&server_res_buf[0..n_bytes_read]).unwrap());
-
         let server_res_callback = self.on_server_response.take();
         self.consume_callback_function(server_res_callback);
 
         /* === REPLY TO CLIENT === */
-
-        // let client_stream = &mut self.client_stream;
         let (_, mut client_write_head) = (&mut self.client_stream).split();
         let n_bytes_written = client_write_head
             .write(&server_res_buf[0..n_bytes_read])
