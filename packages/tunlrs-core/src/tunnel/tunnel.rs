@@ -20,7 +20,7 @@ pub fn init_tunnel() -> () {
 async fn tunnel_loop() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:5000").await?;
     loop {
-        let (mut stream, socket) = listener.accept().await?;
+        let (stream, socket) = listener.accept().await?;
         let mut tunnel_connection_object =
             TunnelConnection::new(stream, socket, "127.0.0.1".to_string(), 5050);
         tokio::spawn(async move {
@@ -67,12 +67,3 @@ async fn tunnel_to_machine(msg: &[u8]) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-// #[cfg(test)]
-// mod test_listener {
-//     use super::*;
-//     #[test]
-//     fn test_init_listener() {
-//         let res = init_listener();
-//         assert_eq!(res, ());
-//     }
-// }

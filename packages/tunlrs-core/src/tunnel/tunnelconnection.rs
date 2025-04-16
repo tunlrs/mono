@@ -1,4 +1,5 @@
 use ::std::net::SocketAddr;
+use std::str;
 use ::tokio::net::{TcpSocket, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -28,16 +29,6 @@ pub struct TunnelConnection {
     - TLS/SSL
     - encryption(?)
     */
-}
-
-/*
-    expose
-    TunnelManager
-        - values()
-        - ready, waiting for server
-        - vec[vec[OBJ, OBJ], 1: WAITIN]
-        - TunnelConnection
-*/
 
 impl TunnelConnection {
     pub fn new(
@@ -76,7 +67,11 @@ impl TunnelConnection {
         }
     }
 
-    pub fn set_on_connect(&mut self) {}
+    pub fn set_on_connect(&mut self, func: Option<function_callback>) {
+        /* @doubt: are we "consuming" func, or keeping it alive 
+         * for the lifetime? */
+        self.on_connect = func;
+    }
     pub fn set_on_client_read(&mut self) {}
     pub fn set_on_server_request(&mut self) {}
     pub fn set_on_server_response(&mut self) {}
@@ -137,12 +132,12 @@ impl TunnelConnection {
 
         let server_stream = Option::expect(self.server_stream.as_mut(), "");
         let (_, mut write_head) = server_stream.split();
-        print!("Writing: {:?}\n", &client_req_buf[0..n_bytes_read]);
+        // print!("Writing: {:?}\n", &client_req_buf[0..n_bytes_read]);
         let nb = write_head
             .write(&client_req_buf[0..n_bytes_read])
             .await
             .unwrap();
-        println!("Bytes written: {:?}", nb);
+        // println!("Bytes written: {:?}", nb);
 
         let server_req_callback = self.on_server_request.take();
         self.consume_callback_function(server_req_callback);
@@ -163,7 +158,8 @@ impl TunnelConnection {
             println!("Empty pipe from server!");
             return;
         }
-        println!("Read from server: {:?}", &server_res_buf[0..n_bytes_read]);
+        // println!("Read from server: {:?}", &server_res_buf[0..n_bytes_read]);
+        // println!("DATA: {:?}", str::from_utf8(&server_res_buf[0..n_bytes_read]).unwrap());
 
         let server_res_callback = self.on_server_response.take();
         self.consume_callback_function(server_res_callback);
@@ -188,4 +184,3 @@ impl TunnelConnection {
     }
 }
 
-/* @todo: unit testing of the TunnelConnection */
